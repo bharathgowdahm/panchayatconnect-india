@@ -1,0 +1,32 @@
+[
+  {
+    "name": "PM-KISAN",
+    "category": "Agriculture",
+    "level": "Central",
+    "state": "All India",
+    "description": "Income support scheme for eligible farmer families.",
+    "keywords": ["farmer", "agriculture", "farm"],
+    "source": "https://pmkisan.gov.in/",
+    "source_name": "PM-KISAN Official Portal"
+  },
+  {
+    "name": "Mahatma Gandhi NREGA",
+    "category": "Employment",
+    "level": "Central",
+    "state": "All India",
+    "description": "Rural employment programme providing guaranteed wage employment subject to the applicable rules.",
+    "keywords": ["employment", "rural", "job", "work"],
+    "source": "https://nrega.nic.in/",
+    "source_name": "MGNREGA Official Portal"
+  },
+  {
+    "name": "PMAY-G",
+    "category": "Housing",
+    "level": "Central",
+    "state": "All India",
+    "description": "Rural housing programme for eligible beneficiaries under applicable criteria.",
+    "keywords": ["housing", "house", "rural", "home"],
+    "source": "https://pmayg.nic.in/",
+    "source_name": "PMAY-G Official Portal"
+  }
+]
