@@ -1,8 +1,9 @@
 import streamlit as st
+import feedparser
 
 # ============================================================
 # PANCHAYATCONNECT
-# V0.2 PROFESSIONAL DASHBOARD
+# V0.3 — CIVIC INFORMATION PLATFORM
 # ============================================================
 
 st.set_page_config(
@@ -13,88 +14,90 @@ st.set_page_config(
 )
 
 # ============================================================
-# CUSTOM STYLE
+# STYLE
 # ============================================================
 
-st.markdown(
-    """
-    <style>
+st.markdown("""
+<style>
 
-    .main {
-        padding-top: 1rem;
-    }
+.hero {
+    padding: 30px;
+    border-radius: 20px;
+    background: linear-gradient(135deg, #0b5d3b, #198754);
+    color: white;
+    margin-bottom: 25px;
+}
 
-    .hero {
-        padding: 28px;
-        border-radius: 18px;
-        background: linear-gradient(
-            135deg,
-            #0f5132,
-            #198754
-        );
-        color: white;
-        margin-bottom: 24px;
-    }
+.hero h1 {
+    font-size: 40px;
+    margin-bottom: 5px;
+}
 
-    .hero h1 {
-        font-size: 38px;
-        margin-bottom: 5px;
-    }
+.hero p {
+    font-size: 17px;
+    opacity: .92;
+}
 
-    .hero p {
-        font-size: 17px;
-        opacity: 0.92;
-    }
+.section-title {
+    font-size: 25px;
+    font-weight: 700;
+    margin-top: 25px;
+    margin-bottom: 15px;
+}
 
-    .section-title {
-        font-size: 25px;
-        font-weight: 700;
-        margin-top: 25px;
-        margin-bottom: 12px;
-    }
+.small-muted {
+    opacity: .7;
+    font-size: 13px;
+}
 
-    .scheme-card {
-        padding: 20px;
-        border: 1px solid #dddddd;
-        border-radius: 16px;
-        margin-bottom: 12px;
-        background: rgba(255,255,255,0.03);
-    }
+.footer {
+    margin-top: 45px;
+    padding: 22px;
+    text-align: center;
+    border-top: 1px solid #ddd;
+    opacity: .7;
+}
 
-    .scheme-title {
-        font-size: 20px;
-        font-weight: 700;
-    }
-
-    .scheme-category {
-        font-size: 14px;
-        opacity: 0.75;
-        margin-bottom: 8px;
-    }
-
-    .source-card {
-        padding: 18px;
-        border: 1px solid #dddddd;
-        border-radius: 14px;
-        height: 100%;
-    }
-
-    .footer {
-        margin-top: 40px;
-        padding: 20px;
-        border-top: 1px solid #dddddd;
-        text-align: center;
-        opacity: 0.7;
-        font-size: 13px;
-    }
-
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+</style>
+""", unsafe_allow_html=True)
 
 # ============================================================
-# SAMPLE VERIFIED-STYLE DATA
+# DEMO DIRECTORY DATA
+# ============================================================
+
+panchayats = [
+    {
+        "state": "Karnataka",
+        "district": "Hassan",
+        "block": "Hassan",
+        "name": "Example Gram Panchayat 1",
+        "type": "Village Panchayat",
+    },
+    {
+        "state": "Karnataka",
+        "district": "Hassan",
+        "block": "Arkalgud",
+        "name": "Example Gram Panchayat 2",
+        "type": "Village Panchayat",
+    },
+    {
+        "state": "Karnataka",
+        "district": "Mysuru",
+        "block": "Mysuru",
+        "name": "Example Gram Panchayat 3",
+        "type": "Village Panchayat",
+    },
+    {
+        "state": "Karnataka",
+        "district": "Bengaluru Rural",
+        "block": "Devanahalli",
+        "name": "Example Gram Panchayat 4",
+        "type": "Village Panchayat",
+    },
+]
+
+# ============================================================
+# SCHEME DATA
 # ============================================================
 
 schemes = [
@@ -110,7 +113,7 @@ schemes = [
         "name": "MGNREGA",
         "category": "Employment",
         "level": "Central",
-        "description": "Information about rural wage employment under the applicable programme rules.",
+        "description": "Information about rural wage employment under applicable programme rules.",
         "keywords": ["employment", "job", "work", "rural"],
         "url": "https://nrega.nic.in/",
     },
@@ -140,7 +143,9 @@ with st.sidebar:
 
     st.markdown("## 🇮🇳 PanchayatConnect")
 
-    st.caption("Government information, connected to your Panchayat.")
+    st.caption(
+        "Government information, connected to your Panchayat."
+    )
 
     st.divider()
 
@@ -148,6 +153,7 @@ with st.sidebar:
         "Navigation",
         [
             "🏠 Dashboard",
+            "🏘️ Panchayat Directory",
             "🔎 Find Schemes",
             "📢 Government Updates",
             "🏛️ Official Sources",
@@ -178,7 +184,7 @@ with st.sidebar:
 
     panchayat = st.text_input(
         "Panchayat",
-        placeholder="Enter Panchayat name",
+        placeholder="Enter Panchayat",
     )
 
     st.divider()
@@ -194,128 +200,198 @@ with st.sidebar:
 
 if page == "🏠 Dashboard":
 
-    st.markdown(
-        """
-        <div class="hero">
-            <h1>🇮🇳 PanchayatConnect</h1>
-            <p>
-            Discover government schemes, official information
-            and important public-service updates in one place.
-            </p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    st.markdown("""
+    <div class="hero">
+        <h1>🇮🇳 PanchayatConnect</h1>
+        <p>
+        Government information connected to citizens,
+        schemes and local Panchayats.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    location = state
 
     if district:
-        location_text = district
-        if panchayat:
-            location_text += f" • {panchayat}"
-        location_text += f" • {state}"
-    else:
-        location_text = state
+        location += f" • {district}"
 
-    st.info(f"📍 Current search location: **{location_text}**")
+    if panchayat:
+        location += f" • {panchayat}"
 
-    # Metrics
-    col1, col2, col3, col4 = st.columns(4)
+    st.info(f"📍 Selected location: **{location}**")
 
-    col1.metric(
-        "Available Schemes",
-        len(schemes),
-    )
+    c1, c2, c3, c4 = st.columns(4)
 
-    col2.metric(
-        "Government Sources",
-        "4",
-    )
-
-    col3.metric(
-        "Languages",
-        "2",
-    )
-
-    col4.metric(
-        "Platform",
-        "V0.2",
-    )
+    c1.metric("Schemes", len(schemes))
+    c2.metric("Directory", "LGD")
+    c3.metric("Languages", "2")
+    c4.metric("Version", "0.3")
 
     st.markdown(
-        '<div class="section-title">⚡ Explore PanchayatConnect</div>',
-        unsafe_allow_html=True,
+        '<div class="section-title">🚀 Explore</div>',
+        unsafe_allow_html=True
     )
 
-    c1, c2, c3 = st.columns(3)
+    a, b, c = st.columns(3)
 
-    with c1:
-        st.markdown("### 🔎 Find Schemes")
+    with a:
+        st.markdown("### 🏘️ Panchayat Directory")
         st.write(
-            "Search government schemes using your location "
-            "and citizen needs."
+            "Explore the planned local-government directory."
         )
 
-        if st.button(
-            "Search Schemes →",
-            key="dashboard_scheme",
-            use_container_width=True,
-        ):
-            st.info("Use **Find Schemes** from the sidebar.")
-
-    with c2:
-        st.markdown("### 📢 Government Updates")
+    with b:
+        st.markdown("### 🔎 Scheme Finder")
         st.write(
-            "A future section for verified government "
-            "announcements and public updates."
+            "Search schemes by category and citizen need."
         )
 
-        st.info("Live update integration coming next.")
-
-    with c3:
-        st.markdown("### 🏛️ Official Sources")
+    with c:
+        st.markdown("### 📢 Updates")
         st.write(
-            "Access original government portals instead of "
-            "relying on unverified information."
+            "Read government releases from official sources."
         )
 
-        if st.button(
-            "View Sources →",
-            key="dashboard_sources",
-            use_container_width=True,
-        ):
-            st.info("Open **Official Sources** from the sidebar.")
-
-    # Featured schemes
     st.markdown(
         '<div class="section-title">⭐ Featured Schemes</div>',
-        unsafe_allow_html=True,
+        unsafe_allow_html=True
     )
 
     for scheme in schemes[:3]:
 
-        st.markdown(
-            f"""
-            <div class="scheme-card">
-                <div class="scheme-title">
-                    {scheme["name"]}
-                </div>
+        with st.container(border=True):
 
-                <div class="scheme-category">
-                    {scheme["category"]} • {scheme["level"]}
-                </div>
+            st.markdown(f"### {scheme['name']}")
 
-                <div>
-                    {scheme["description"]}
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
+            st.caption(
+                f"{scheme['category']} • {scheme['level']}"
+            )
+
+            st.write(scheme["description"])
+
+            st.link_button(
+                "🏛️ Official Source",
+                scheme["url"]
+            )
+
+# ============================================================
+# PANCHAYAT DIRECTORY
+# ============================================================
+
+elif page == "🏘️ Panchayat Directory":
+
+    st.title("🏘️ Panchayat Directory")
+
+    st.write(
+        "Explore local-government information using the "
+        "Panchayat hierarchy."
+    )
+
+    st.info(
+        "🇮🇳 Directory source architecture: "
+        "Local Government Directory (LGD), "
+        "Ministry of Panchayati Raj."
+    )
+
+    st.markdown("### 📍 Select Location")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        directory_state = st.selectbox(
+            "State",
+            ["Karnataka"],
+            key="directory_state"
         )
 
-        st.link_button(
-            "Open Official Source",
-            scheme["url"],
-            use_container_width=False,
+    with col2:
+
+        directory_district = st.selectbox(
+            "District",
+            [
+                "All Districts",
+                "Hassan",
+                "Mysuru",
+                "Bengaluru Rural",
+            ],
+            key="directory_district"
         )
+
+    search_panchayat = st.text_input(
+        "🔎 Search Panchayat",
+        placeholder="Type Panchayat name..."
+    )
+
+    st.divider()
+
+    results = panchayats
+
+    if directory_district != "All Districts":
+
+        results = [
+            p
+            for p in results
+            if p["district"] == directory_district
+        ]
+
+    if search_panchayat:
+
+        query = search_panchayat.lower()
+
+        results = [
+            p
+            for p in results
+            if query in p["name"].lower()
+        ]
+
+    st.subheader(
+        f"Directory Results: {len(results)}"
+    )
+
+    for item in results:
+
+        with st.container(border=True):
+
+            st.markdown(
+                f"### 🏘️ {item['name']}"
+            )
+
+            st.write(
+                f"**State:** {item['state']}"
+            )
+
+            st.write(
+                f"**District:** {item['district']}"
+            )
+
+            st.write(
+                f"**Block:** {item['block']}"
+            )
+
+            st.write(
+                f"**Type:** {item['type']}"
+            )
+
+            st.caption(
+                "⚠️ Prototype directory record — "
+                "not yet a live LGD record."
+            )
+
+    st.divider()
+
+    st.markdown("### 🏛️ Official LGD")
+
+    st.write(
+        "The production version will retrieve verified "
+        "Panchayat records and LGD codes from the official "
+        "Local Government Directory."
+    )
+
+    st.link_button(
+        "Open Ministry of Panchayati Raj →",
+        "https://panchayat.gov.in/en/lgd/"
+    )
 
 # ============================================================
 # FIND SCHEMES
@@ -325,89 +401,77 @@ elif page == "🔎 Find Schemes":
 
     st.title("🔎 Find Government Schemes")
 
-    st.write(
-        "Search the current PanchayatConnect demonstration "
-        "catalogue."
+    search = st.text_input(
+        "Search",
+        placeholder="Example: farmer, housing, employment"
     )
 
-    col1, col2 = st.columns([2, 1])
-
-    with col1:
-        search = st.text_input(
-            "Search",
-            placeholder="Example: farmer, housing, employment",
-        )
-
-    with col2:
-        category = st.selectbox(
-            "Category",
-            [
-                "All",
-                "Agriculture",
-                "Employment",
-                "Housing",
-                "Digital Services",
-            ],
-        )
-
-    st.divider()
+    category = st.selectbox(
+        "Category",
+        [
+            "All",
+            "Agriculture",
+            "Employment",
+            "Housing",
+            "Digital Services",
+        ]
+    )
 
     results = schemes
 
     if search:
-        search_lower = search.lower()
+
+        query = search.lower()
 
         results = [
-            scheme
-            for scheme in results
+            s
+            for s in results
             if (
-                search_lower in scheme["name"].lower()
-                or search_lower in scheme["category"].lower()
-                or search_lower in scheme["description"].lower()
-                or any(
-                    search_lower in keyword
-                    for keyword in scheme["keywords"]
-                )
+                query in s["name"].lower()
+                or query in s["category"].lower()
+                or query in s["description"].lower()
+                or any(query in k for k in s["keywords"])
             )
         ]
 
     if category != "All":
+
         results = [
-            scheme
-            for scheme in results
-            if scheme["category"] == category
+            s
+            for s in results
+            if s["category"] == category
         ]
 
-    st.subheader(f"Results: {len(results)}")
+    st.divider()
+
+    st.subheader(
+        f"Results: {len(results)}"
+    )
 
     if not results:
 
-        st.warning(
-            "No matching schemes found in the current catalogue."
-        )
+        st.warning("No matching schemes found.")
 
-    else:
+    for scheme in results:
 
-        for scheme in results:
+        with st.container(border=True):
 
-            with st.container(border=True):
+            st.markdown(
+                f"### {scheme['name']}"
+            )
 
-                st.markdown(
-                    f"### {scheme['name']}"
-                )
+            st.caption(
+                f"{scheme['category']} • {scheme['level']}"
+            )
 
-                st.caption(
-                    f"{scheme['category']} • {scheme['level']}"
-                )
+            st.write(
+                scheme["description"]
+            )
 
-                st.write(
-                    scheme["description"]
-                )
-
-                st.link_button(
-                    "🏛️ Open Official Government Source",
-                    scheme["url"],
-                )
+            st.link_button(
+                "🏛️ Open Official Source",
+                scheme["url"]
+            )
 
 # ============================================================
 # GOVERNMENT UPDATES
@@ -417,28 +481,64 @@ elif page == "📢 Government Updates":
 
     st.title("📢 Government Updates")
 
-    st.info(
-        "Live government update integration is planned for "
-        "the next version."
+    st.caption(
+        "Official-source update feed"
     )
 
-    st.markdown("### Planned Update System")
-
-    updates = [
-        "Official government announcements",
-        "Scheme deadline changes",
-        "New scheme notifications",
-        "Important citizen-service notices",
-        "Panchayat-level public information",
-    ]
-
-    for item in updates:
-        st.write(f"• {item}")
-
-    st.warning(
-        "PanchayatConnect will show the original source and "
-        "verification timestamp when live data is introduced."
+    PIB_RSS = (
+        "https://pib.gov.in/RssMain.aspx"
+        "?ModId=6&Lang=1&Regid=1"
     )
+
+    try:
+
+        feed = feedparser.parse(PIB_RSS)
+
+        if feed.entries:
+
+            st.success(
+                f"🟢 {len(feed.entries)} updates available"
+            )
+
+            for entry in feed.entries[:10]:
+
+                with st.container(border=True):
+
+                    st.markdown(
+                        f"### 📰 {entry.get('title', 'Government Update')}"
+                    )
+
+                    if entry.get("published"):
+
+                        st.caption(
+                            entry.get("published")
+                        )
+
+                    summary = entry.get(
+                        "summary",
+                        "Open the official release for details."
+                    )
+
+                    st.write(summary)
+
+                    if entry.get("link"):
+
+                        st.link_button(
+                            "Read Official Release →",
+                            entry["link"]
+                        )
+
+        else:
+
+            st.warning(
+                "No updates returned at the moment."
+            )
+
+    except Exception:
+
+        st.error(
+            "The government update feed is temporarily unavailable."
+        )
 
 # ============================================================
 # OFFICIAL SOURCES
@@ -448,36 +548,31 @@ elif page == "🏛️ Official Sources":
 
     st.title("🏛️ Official Government Sources")
 
-    st.write(
-        "Use the original government portals for authoritative "
-        "information."
-    )
-
     sources = [
         (
             "🇮🇳 India.gov.in",
             "National Portal of India",
-            "https://www.india.gov.in/",
+            "https://www.india.gov.in/"
         ),
         (
             "📊 data.gov.in",
             "Open Government Data Platform",
-            "https://www.data.gov.in/",
+            "https://data.gov.in/"
+        ),
+        (
+            "🏘️ Ministry of Panchayati Raj",
+            "Official Panchayati Raj information",
+            "https://panchayat.gov.in/"
+        ),
+        (
+            "🏛️ LGD",
+            "Local Government Directory",
+            "https://lgdirectory.gov.in/"
         ),
         (
             "📰 PIB",
             "Press Information Bureau",
-            "https://pib.gov.in/",
-        ),
-        (
-            "🌾 PM-KISAN",
-            "Official PM-KISAN portal",
-            "https://pmkisan.gov.in/",
-        ),
-        (
-            "🏠 PMAY-G",
-            "Pradhan Mantri Awaas Yojana – Gramin",
-            "https://pmayg.nic.in/",
+            "https://pib.gov.in/"
         ),
     ]
 
@@ -485,25 +580,26 @@ elif page == "🏛️ Official Sources":
 
         cols = st.columns(2)
 
-        for col, source in zip(cols, sources[i:i + 2]):
+        for col, source in zip(
+            cols,
+            sources[i:i + 2]
+        ):
 
             with col:
 
-                st.markdown(
-                    f"""
-                    <div class="source-card">
-                        <h3>{source[0]}</h3>
-                        <p>{source[1]}</p>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
+                with st.container(border=True):
 
-                st.link_button(
-                    "Visit Official Website",
-                    source[2],
-                    use_container_width=True,
-                )
+                    st.markdown(
+                        f"### {source[0]}"
+                    )
+
+                    st.write(source[1])
+
+                    st.link_button(
+                        "Open Official Website",
+                        source[2],
+                        use_container_width=True
+                    )
 
 # ============================================================
 # ABOUT
@@ -513,55 +609,46 @@ elif page == "ℹ️ About":
 
     st.title("ℹ️ About PanchayatConnect")
 
-    st.markdown(
-        """
-        ### What is PanchayatConnect?
+    st.markdown("""
+### 🇮🇳 What is PanchayatConnect?
 
-        PanchayatConnect is an independent civic-tech project
-        designed to make government information easier for
-        citizens to discover.
+PanchayatConnect is an independent civic-tech project
+designed to make government information easier to discover.
 
-        ### 🎯 Vision
+### 🎯 Core Goals
 
-        Connect citizens with relevant government information
-        through a simple, location-aware platform.
+- Panchayat discovery
+- Government scheme search
+- Official government updates
+- Source transparency
+- Location-aware information
+- Kannada + English support
+- Future AI assistance
 
-        ### 🧩 Planned Technology
+### 🏗️ Data Architecture
 
-        - Streamlit prototype
-        - Government data sources
-        - PostgreSQL database
-        - FastAPI backend
-        - Search and filtering
-        - Transparent scheme matching
-        - AI/RAG assistant
-        - Kannada + English support
-        - Verification and source tracking
+The production platform is designed around official sources
+such as the Local Government Directory and Open Government
+Data Platform.
 
-        ### 🔐 Important
+### 🔐 Important
 
-        PanchayatConnect is **not a government website**.
+PanchayatConnect is **not a government website**.
 
-        Government information should always be verified against
-        the original official source.
+Information should always be verified against the original
+official government source.
 
-        The project does not guarantee eligibility for any
-        government scheme.
-        """
-    )
+The platform does not guarantee scheme eligibility.
+""")
 
 # ============================================================
 # FOOTER
 # ============================================================
 
-st.markdown(
-    """
-    <div class="footer">
-        PanchayatConnect • Independent Civic-Tech Project • V0.2
-        <br>
-        Government information should be verified with the
-        original official source.
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+st.markdown("""
+<div class="footer">
+PanchayatConnect • Independent Civic-Tech Project • V0.3
+<br>
+Official sources are preferred for verification.
+</div>
+""", unsafe_allow_html=True)
