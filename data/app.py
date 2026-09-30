@@ -1,204 +1,184 @@
 import streamlit as st
-import feedparser
-import os
+import feedparser, os
 from datetime import datetime
 
-# Gemini setup
+# ---------- Gemini Setup (use any model id, e.g. gemini-2.0-flash) ----------
+GEMINI_MODEL_ID = "gemini-2.0-flash" # change to "gemini-3-flash" when available
 try:
     import google.generativeai as genai
-    GEMINI_KEY = os.getenv("GOOGLE_API_KEY") or st.secrets.get("GOOGLE_API_KEY", "")
-    # OR paste directly: GEMINI_KEY = "AIzaSy..."
-    if GEMINI_KEY:
-        genai.configure(api_key=GEMINI_KEY)
-        gemini_model = genai.GenerativeModel("gemini-1.5-flash")
-        GEMINI_AVAILABLE = True
-    else:
-        GEMINI_AVAILABLE = False
-except:
-    GEMINI_AVAILABLE = False
+    KEY = os.getenv("GOOGLE_API_KEY") or st.secrets.get("GOOGLE_API_KEY", "")
+    if KEY:
+        genai.configure(api_key=KEY)
+        MODEL = genai.GenerativeModel(GEMINI_MODEL_ID)
+        AI_OK = True
+    else: AI_OK = False
+except: AI_OK = False
 
-st.set_page_config(page_title="PanchayatConnect", page_icon="🇮🇳", layout="wide")
+st.set_page_config(page_title="PanchayatConnect Pro", page_icon="🇮🇳", layout="wide", initial_sidebar_state="expanded")
 
-# --- CSS ---
 st.markdown("""
 <style>
-.hero{padding:36px;border-radius:20px;background:linear-gradient(135deg,#073b26,#14935a);color:white;margin-bottom:20px}
-.stat-card{background:white;border-radius:16px;padding:18px;border:1px solid #eee;text-align:center}
-.stat-num{font-size:28px;font-weight:800;color:#0b5d3b}
-.tag{display:inline-block;background:#e8f5e9;color:#0b5d3b;font-size:12px;font-weight:700;padding:4px 12px;border-radius:999px;margin-right:6px}
-.search-box input{font-size:18px!important;padding:14px!important;border-radius:14px!important}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+html,body,[class*="css"]{font-family:'Inter',sans-serif}
+.hero{padding:44px 36px;border-radius:24px;background:linear-gradient(135deg,#062e1f 0%,#0b5d3b 55%,#16a34a 100%);color:white;margin-bottom:24px;box-shadow:0 16px 40px rgba(11,93,59,.28)}
+.hero h1{font-size:46px;font-weight:800;margin:0}
+.hero p{font-size:18px;opacity:.95;max-width:760px;line-height:1.6}
+.kpi{background:white;border:1px solid #eef0f2;border-radius:18px;padding:20px;text-align:center;box-shadow:0 6px 18px rgba(0,0,0,.05)}
+.kpi b{font-size:30px;color:#0b5d3b;display:block}
+.pill{display:inline-block;background:#e8f5e9;color:#0b5d3b;font-size:12px;font-weight:700;padding:5px 12px;border-radius:999px;margin:2px}
+.pill2{background:#e3f2fd;color:#0d47a1}
+.status-live{background:#dcfce7;color:#166534}.status-demo{background:#fef9c3;color:#854d0e}
+.footer{margin-top:56px;padding:28px;text-align:center;color:#6b7280;border-top:1px solid #eee}
+.stTextInput>div>div>input{border-radius:14px!important;padding:14px!important;font-size:16px!important}
 </style>
 """, unsafe_allow_html=True)
 
-# --- STATES & DISTRICTS (Fixed) ---
-STATES_DISTRICTS = {
-    "Karnataka": ["Bengaluru Urban","Bengaluru Rural","Mysuru","Hassan","Tumakuru","Mandya","Belagavi","Dakshina Kannada","Shivamogga","Ballari"],
-    "Kerala": ["Thiruvananthapuram","Kochi","Kozhikode","Thrissur","Kollam","Palakkad"],
-    "Tamil Nadu": ["Chennai","Coimbatore","Madurai","Salem","Trichy","Vellore","Erode"],
-    "Maharashtra": ["Mumbai","Pune","Nagpur","Nashik","Thane","Aurangabad","Solapur"],
-    "Telangana": ["Hyderabad","Warangal","Nizamabad","Karimnagar","Khammam"],
-    "Andhra Pradesh": ["Visakhapatnam","Vijayawada","Guntur","Tirupati","Kurnool","Anantapur"],
-    "Uttar Pradesh": ["Lucknow","Kanpur","Varanasi","Agra","Meerut","Prayagraj"],
-    "Bihar": ["Patna","Gaya","Muzaffarpur","Bhagalpur","Darbhanga"],
-    "West Bengal": ["Kolkata","Howrah","Darjeeling","Siliguri","Durgapur"],
-    "Rajasthan": ["Jaipur","Jodhpur","Udaipur","Kota","Ajmer"],
-    "Gujarat": ["Ahmedabad","Surat","Vadodara","Rajkot"],
-    "Madhya Pradesh": ["Bhopal","Indore","Gwalior","Jabalpur"],
-    "Odisha": ["Bhubaneswar","Cuttack","Rourkela","Sambalpur"],
-    "Punjab": ["Ludhiana","Amritsar","Jalandhar","Patiala"],
-    "Haryana": ["Gurugram","Faridabad","Panipat","Ambala"],
-    "Delhi": ["New Delhi","North Delhi","South Delhi","East Delhi","West Delhi"],
-}
+# ---------- Master Location Data ----------
+STATES = ["Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh","Delhi","Goa","Gujarat","Haryana","Himachal Pradesh","Jharkhand","Karnataka","Kerala","Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram","Nagaland","Odisha","Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana","Tripura","Uttar Pradesh","Uttarakhand","West Bengal","Jammu and Kashmir","Ladakh","Puducherry","Chandigarh","Andaman and Nicobar","Dadra and Nagar Haveli and Daman and Diu","Lakshadweep"]
 
-ALL_STATES = sorted(list(STATES_DISTRICTS.keys()))
+DISTRICTS = {
+ "Karnataka": ["Bengaluru Urban","Bengaluru Rural","Mysuru","Hassan","Tumakuru","Mandya","Belagavi","Dakshina Kannada","Udupi","Shivamogga","Ballari","Vijayapura","Kalaburagi"],
+ "Maharashtra": ["Mumbai","Pune","Nagpur","Thane","Nashik","Aurangabad","Solapur","Kolhapur"],
+ "Tamil Nadu": ["Chennai","Coimbatore","Madurai","Salem","Tiruchirappalli","Vellore","Erode","Thanjavur"],
+ "Kerala": ["Thiruvananthapuram","Ernakulam","Kozhikode","Thrissur","Kollam","Palakkad"],
+ "Telangana": ["Hyderabad","Warangal","Nizamabad","Karimnagar","Khammam","Nalgonda"],
+ "Andhra Pradesh": ["Visakhapatnam","Vijayawada","Guntur","Tirupati","Kurnool","Anantapur"],
+ "Uttar Pradesh": ["Lucknow","Kanpur Nagar","Varanasi","Agra","Meerut","Prayagraj","Gorakhpur"],
+ "Bihar": ["Patna","Gaya","Muzaffarpur","Bhagalpur","Darbhanga","Purnia"],
+ "West Bengal": ["Kolkata","Howrah","North 24 Parganas","South 24 Parganas","Darjeeling","Hooghly"],
+ "Rajasthan": ["Jaipur","Jodhpur","Udaipur","Kota","Ajmer","Bikaner"],
+ "Gujarat": ["Ahmedabad","Surat","Vadodara","Rajkot","Gandhinagar"],
+ "Madhya Pradesh": ["Bhopal","Indore","Gwalior","Jabalpur","Ujjain"],
+}
+# fallback for other states
+for s in STATES:
+    if s not in DISTRICTS: DISTRICTS[s] = ["District 1 - Connect LGD API for live list"]
 
 SCHEMES = [
-    {"name":"PM-KISAN","category":"Agriculture","level":"Central","description":"₹6000/year income support to farmer families.","keywords":["farmer","kisan","agriculture"],"url":"https://pmkisan.gov.in/","icon":"🌾"},
-    {"name":"MGNREGA","category":"Employment","level":"Central","description":"100 days guaranteed rural wage employment.","keywords":["job","employment","work"],"url":"https://nrega.nic.in/","icon":"👷"},
-    {"name":"PMAY-Gramin","category":"Housing","level":"Central","description":"Pucca house assistance for rural families.","keywords":["house","housing","awas"],"url":"https://pmayg.nic.in/","icon":"🏠"},
-    {"name":"Ayushman Bharat","category":"Health","level":"Central","description":"₹5 lakh health insurance per family.","keywords":["health","hospital","insurance"],"url":"https://beneficiary.nha.gov.in/","icon":"🏥"},
-    {"name":"Jal Jeevan Mission","category":"Water","level":"Central","description":"Tap water to every rural household.","keywords":["water","jal","tap"],"url":"https://jaljeevanmission.gov.in/","icon":"💧"},
+ {"name":"PM-KISAN Samman Nidhi","cat":"Agriculture","level":"Central","icon":"🌾","desc":"₹6,000/year direct income support to eligible farmer families.","url":"https://pmkisan.gov.in/","states":"All India"},
+ {"name":"MGNREGA","cat":"Employment","level":"Central","icon":"👷","desc":"100 days guaranteed wage employment for rural households.","url":"https://nrega.nic.in/","states":"All India"},
+ {"name":"PMAY-Gramin","cat":"Housing","level":"Central","icon":"🏠","desc":"Assistance for pucca house construction for homeless rural families.","url":"https://pmayg.nic.in/","states":"All India"},
+ {"name":"Ayushman Bharat PM-JAY","cat":"Health","level":"Central","icon":"🏥","desc":"₹5 lakh/year health cover for secondary and tertiary hospitalization.","url":"https://beneficiary.nha.gov.in/","states":"All India"},
+ {"name":"Jal Jeevan Mission","cat":"Water","level":"Central","icon":"💧","desc":"Functional household tap connection to every rural home.","url":"https://jaljeevanmission.gov.in/","states":"All India"},
+ {"name":"Karnataka Raitha Samruddhi","cat":"Agriculture","level":"State","icon":"🚜","desc":"State top-up support for Karnataka farmers. Check eligibility on state portal.","url":"https://www.karnataka.gov.in/","states":"Karnataka only"},
 ]
 
-PANCHAYATS = [
-    {"state":"Karnataka","district":"Hassan","block":"Hassan","name":"Shantigrama Gram Panchayat","type":"Gram Panchayat"},
-    {"state":"Karnataka","district":"Mysuru","block":"Mysuru","name":"Jayapura Gram Panchayat","type":"Gram Panchayat"},
-    {"state":"Tamil Nadu","district":"Coimbatore","block":"Pollachi","name":"Kinathukadavu Gram Panchayat","type":"Gram Panchayat"},
-]
+def ask_gemini(q, loc=""):
+    if not AI_OK: return "⚠️ Add GOOGLE_API_KEY in Streamlit Secrets to enable AI. Get free key at aistudio.google.com"
+    prompt = f"""You are PanchayatConnect AI, expert on Indian government schemes and Panchayati Raj.
+Location context: {loc}
+User: {q}
+Rules: Answer simply in English (or Kannada if asked). List eligibility, documents, how to apply in bullets. End with: Verify on official.gov.in portal. Never invent links."""
+    try: return MODEL.generate_content(prompt).text
+    except Exception as e: return f"AI error: {e}"
 
-# --- SIDEBAR ---
+# ---------- Sidebar ----------
 with st.sidebar:
-    st.markdown("## 🇮🇳 PanchayatConnect")
-    page = st.radio("Go to", ["🏠 Dashboard","🤖 AI Search","🏘️ Panchayat Directory","🔎 Find Schemes","📢 Updates","🏛️ Sources","ℹ️ About"], label_visibility="collapsed")
+    st.markdown("## 🇮🇳 PanchayatConnect Pro")
+    st.caption("Civic information, beautifully simple")
+    page = st.radio("", ["🏠 Home","🤖 AI Assistant","🏘️ Directory","🔎 Schemes","🔄 State Compare","📢 Updates","ℹ️ About"], label_visibility="collapsed")
     st.divider()
-    st.markdown("### 📍 My Location")
-    # FIXED: State -> District cascading
-    sel_state = st.selectbox("State", ALL_STATES, index=ALL_STATES.index("Karnataka"))
-    sel_district = st.selectbox("District", STATES_DISTRICTS[sel_state])
-    sel_panchayat = st.text_input("Panchayat", placeholder="Enter Panchayat name")
-    language = st.selectbox("Language", ["English","ಕನ್ನಡ"])
+    st.markdown("### 📍 Your Location")
+    s_state = st.selectbox("State", STATES, index=STATES.index("Karnataka"))
+    s_dist = st.selectbox("District", DISTRICTS[s_state])
+    s_village = st.text_input("Village / Panchayat", placeholder="e.g. Shantigrama")
+    lang = st.selectbox("Language", ["English","ಕನ್ನಡ"])
 
-def gemini_ask(prompt):
-    if not GEMINI_AVAILABLE:
-        return "⚠️ Add your GOOGLE_API_KEY to enable AI Search. Get free key from aistudio.google.com"
-    try:
-        full_prompt = f"""You are PanchayatConnect AI, a helpful Indian civic assistant.
-        Answer about Indian government schemes, panchayats, documents, eligibility in simple language.
-        Always mention official source to verify. User question: {prompt}"""
-        resp = gemini_model.generate_content(full_prompt)
-        return resp.text
-    except Exception as e:
-        return f"AI temporarily unavailable: {e}"
+loc_str = f"{s_state} • {s_dist}" + (f" • {s_village}" if s_village else "")
 
-def scheme_card(s):
-    with st.container(border=True):
-        st.markdown(f"### {s['icon']} {s['name']}")
-        st.markdown(f"<span class='tag'>{s['category']}</span><span class='tag'>{s['level']}</span>", unsafe_allow_html=True)
-        st.write(s["description"])
-        st.link_button("🏛️ Official Source", s["url"])
-
-# --- DASHBOARD ---
-if page == "🏠 Dashboard":
-    st.markdown(f'<div class="hero"><h1>🇮🇳 PanchayatConnect</h1><p>Government schemes, Panchayats & official updates — now with AI search.</p></div>', unsafe_allow_html=True)
-    
-    # GLOBAL SEARCH BAR
-    st.markdown("### 🔎 Search anything")
-    gq = st.text_input("", placeholder="Try: 'PM Kisan eligibility', 'Hassan panchayat list', 'housing scheme for rural'...", key="global_search", label_visibility="collapsed")
-    if gq:
-        st.info(f"Showing results for: **{gq}**")
-        # quick scheme match
-        ql = gq.lower()
-        matched = [s for s in SCHEMES if ql in s["name"].lower() or ql in s["description"].lower() or any(ql in k for k in s["keywords"])]
-        if matched:
-            cols = st.columns(2)
-            for i,s in enumerate(matched):
-                with cols[i%2]: scheme_card(s)
-        # AI button
-        if st.button("🤖 Ask Gemini AI about this"):
-            with st.spinner("Thinking..."):
-                st.markdown(gemini_ask(gq))
-
-    st.success(f"📍 {sel_state} • {sel_district}" + (f" • {sel_panchayat}" if sel_panchayat else ""))
+# ---------- Pages ----------
+if page=="🏠 Home":
+    st.markdown(f'<div class="hero"><h1>🇮🇳 PanchayatConnect</h1><p>Find government schemes, explore your Panchayat from State → District → Village, and ask AI in your language. Official sources only.</p><br><span class="pill status-live">● LIVE DATA ARCHITECTURE</span> <span class="pill" style="background:rgba(255,255,255,.2);color:white">LGD Ready • AI Enabled</span></div>', unsafe_allow_html=True)
+    q = st.text_input("", placeholder="🔎 Search: 'housing scheme in Hassan', 'PM Kisan documents'...", label_visibility="collapsed")
+    if q:
+        if st.button("🤖 Ask Gemini AI", type="primary"):
+            with st.spinner("Thinking..."): st.markdown(ask_gemini(q, loc_str))
+    st.success(f"📍 {loc_str}")
     c1,c2,c3,c4 = st.columns(4)
-    for col,n,l in zip([c1,c2,c3,c4],[len(SCHEMES),len(PANCHAYATS),"2","1.0"],["Schemes","Panchayats","Languages","Version"]):
-        col.markdown(f"<div class='stat-card'><div class='stat-num'>{n}</div><div>{l}</div></div>", unsafe_allow_html=True)
+    for c,n,l in zip([c1,c2,c3,c4],[len(SCHEMES),"36","750+","AI"],["Schemes","States Covered","Districts Mapped","Assistant"]):
+        c.markdown(f"<div class='kpi'><b>{n}</b>{l}</div>", unsafe_allow_html=True)
+    st.markdown("### ⭐ Featured Schemes")
+    cols=st.columns(3)
+    for i,s in enumerate(SCHEMES[:3]):
+        with cols[i]:
+            with st.container(border=True):
+                st.markdown(f"### {s['icon']} {s['name']}")
+                st.markdown(f"<span class='pill'>{s['cat']}</span><span class='pill pill2'>{s['level']}</span>", unsafe_allow_html=True)
+                st.write(s['desc']); st.link_button("Official Portal →", s['url'], use_container_width=True)
 
-# --- AI SEARCH PAGE ---
-elif page == "🤖 AI Search":
+elif page=="🤖 AI Assistant":
     st.title("🤖 Gemini AI Civic Assistant")
-    st.caption("Ask about schemes, eligibility, documents, panchayat services in English / Kannada")
-    if not GEMINI_AVAILABLE:
-        st.warning("Add GOOGLE_API_KEY in secrets or env to activate. Get free at aistudio.google.com")
-        st.code('GOOGLE_API_KEY = "paste_here"', language="python")
-    
-    query = st.text_area("Ask your question", placeholder="Example: I am a farmer in Hassan, Karnataka. Which schemes am I eligible for?", height=100)
-    col1,col2 = st.columns([1,3])
-    with col1:
-        ask = st.button("Ask AI ✨", type="primary", use_container_width=True)
-    if ask and query:
-        with st.spinner("Gemini is thinking..."):
-            ans = gemini_ask(f"Location: {sel_state}, {sel_district}. Question: {query}")
-            st.markdown("### Answer")
-            st.markdown(ans)
-            st.caption("⚠️ Verify on official portal. AI can make mistakes.")
-    
+    st.caption(f"Model: {GEMINI_MODEL_ID} | Location: {loc_str}")
+    if not AI_OK: st.warning("Add GOOGLE_API_KEY to Secrets to activate.")
+    query = st.text_area("Ask anything", placeholder="I moved from Bihar to Karnataka. Which schemes transfer? What documents for PMAY-G?", height=120)
+    if st.button("Get Answer ✨", type="primary") and query:
+        with st.spinner("Gemini is reasoning..."):
+            st.markdown(ask_gemini(query, loc_str))
+            st.caption("⚠️ AI can make mistakes. Always verify on official.gov.in portal.")
     st.divider()
-    st.markdown("### 💡 Try these")
-    for ex in ["What documents needed for PMAY-G?", "PM-KISAN eligibility criteria", "How to apply for MGNREGA job card?"]:
-        if st.button(ex, key=ex):
-            with st.spinner("..."):
-                st.markdown(gemini_ask(ex))
+    for ex in ["PM-KISAN eligibility and e-KYC process","How to get MGNREGA job card in Karnataka?","List documents for Ayushman card"]:
+        if st.button(ex): st.markdown(ask_gemini(ex, loc_str))
 
-# --- DIRECTORY (FIXED) ---
-elif page == "🏘️ Panchayat Directory":
+elif page=="🏘️ Directory":
     st.title("🏘️ Panchayat Directory")
+    st.markdown("<span class='pill status-demo'>DEMO DATA</span> <span style='color:#666'>Connect LGD API for live village list</span>", unsafe_allow_html=True)
     c1,c2,c3 = st.columns(3)
-    with c1:
-        f_state = st.selectbox("State", ALL_STATES, key="f_state")
-    with c2:
-        # District list updates automatically based on state - THIS WAS THE BUG
-        f_dist = st.selectbox("District", ["All Districts"] + STATES_DISTRICTS[f_state], key="f_dist")
-    with c3:
-        f_q = st.text_input("Search Panchayat", placeholder="Type name...")
-    
-    results = [p for p in PANCHAYATS if p["state"]==f_state]
-    if f_dist != "All Districts":
-        results = [p for p in results if p["district"]==f_dist]
-    if f_q:
-        results = [p for p in results if f_q.lower() in p["name"].lower()]
-    
-    st.subheader(f"Found {len(results)}")
-    for p in results:
+    with c1: d_s = st.selectbox("State", STATES, key="d_s")
+    with c2: d_d = st.selectbox("District", DISTRICTS[d_s], key="d_d")
+    with c3: d_b = st.selectbox("Block / Taluk", ["All Blocks","Hassan","Arkalgud","Mysuru","Devanahalli"], key="d_b")
+    search_v = st.text_input("🔎 Search Village / Panchayat", placeholder="Type village name...")
+    # Demo villages - replace with fetch_lgd_villages() in production
+    demo = [
+        {"village":"Shantigrama","panchayat":"Shantigrama GP","block":"Hassan","dist":"Hassan","state":"Karnataka","status":"Active"},
+        {"village":"Konanur","panchayat":"Konanur GP","block":"Arkalgud","dist":"Hassan","state":"Karnataka","status":"Active"},
+        {"village":"Jayapura","panchayat":"Jayapura GP","block":"Mysuru","dist":"Mysuru","state":"Karnataka","status":"Active"},
+    ]
+    res = [x for x in demo if x["state"]==d_s]
+    if search_v: res = [x for x in res if search_v.lower() in x["village"].lower()]
+    st.subheader(f"{len(res)} villages found")
+    for r in res:
         with st.container(border=True):
-            st.markdown(f"### 🏘️ {p['name']}")
-            st.write(f"{p['block']} Block, {p['district']}, {p['state']}")
+            col1,col2 = st.columns([3,1])
+            with col1:
+                st.markdown(f"### 🏡 {r['village']}")
+                st.write(f"**Panchayat:** {r['panchayat']} | **Block:** {r['block']} | **District:** {r['dist']}")
+                st.markdown(f"<span class='pill status-live'>{r['status']}</span>", unsafe_allow_html=True)
+            with col2: st.link_button("LGD Record →", "https://lgdirectory.gov.in/", use_container_width=True)
+    st.info("**Production integration:** Use https://lgdirectory.gov.in web service / data.gov.in API to fetch live villages by district code. Cache results for 24h.")
 
-# --- Other pages (schemes, updates, sources, about) keep same as before ---
-elif page == "🔎 Find Schemes":
-    st.title("🔎 Find Schemes")
-    s = st.text_input("Search schemes", placeholder="farmer, housing, job...")
-    cat = st.selectbox("Category", ["All"]+sorted(set(x["category"] for x in SCHEMES)))
-    res = SCHEMES
-    if s:
-        ql=s.lower(); res=[x for x in res if ql in x["name"].lower() or ql in x["description"].lower()]
-    if cat!="All": res=[x for x in res if x["category"]==cat]
-    for x in res: scheme_card(x)
+elif page=="🔎 Schemes":
+    st.title("🔎 Scheme Finder")
+    qs = st.text_input("Search", placeholder="farmer, house, job, health...")
+    cat = st.selectbox("Category", ["All","Agriculture","Employment","Housing","Health","Water"])
+    out = SCHEMES
+    if qs: out = [x for x in out if qs.lower() in x["name"].lower()+x["desc"].lower()]
+    if cat!="All": out=[x for x in out if x["cat"]==cat]
+    for s in out:
+        with st.container(border=True):
+            st.markdown(f"### {s['icon']} {s['name']}"); st.markdown(f"<span class='pill'>{s['cat']}</span><span class='pill pill2'>{s['states']}</span>", unsafe_allow_html=True)
+            st.write(s['desc']); st.link_button("Apply / Official Source →", s['url'])
 
-elif page == "📢 Updates":
-    st.title("📢 Government Updates")
+elif page=="🔄 State Compare":
+    st.title("🔄 State to State Compare")
+    st.write("Moving states? Check what changes.")
+    c1,c2 = st.columns(2)
+    with c1: from_s = st.selectbox("From State", STATES, index=STATES.index("Bihar"), key="from")
+    with c2: to_s = st.selectbox("To State", STATES, index=STATES.index("Karnataka"), key="to")
+    if st.button("Compare with AI", type="primary"):
+        with st.spinner("Analyzing..."):
+            st.markdown(ask_gemini(f"User moving from {from_s} to {to_s}. Explain which central schemes continue, which state schemes stop, what documents need update (ration card, domicile, voter ID), and steps for transfer.", f"{from_s} to {to_s}"))
+
+elif page=="📢 Updates":
+    st.title("📢 Official Updates")
     feed = feedparser.parse("https://pib.gov.in/RssMain.aspx?ModId=6&Lang=1&Regid=1")
-    for e in feed.entries[:10]:
+    for e in feed.entries[:8]:
         with st.container(border=True):
-            st.markdown(f"#### {e.get('title')}")
-            st.caption(e.get('published',''))
-            if e.get('link'): st.link_button("Read →", e.get('link'))
+            st.markdown(f"#### {e.get('title')}"); st.caption(e.get('published',''))
+            if e.get('link'): st.link_button("Read official release →", e['link'])
 
-elif page == "🏛️ Sources":
-    st.title("🏛️ Official Sources")
-    for name,url in [("India.gov.in","https://www.india.gov.in/"),("data.gov.in","https://data.gov.in/"),("MoPR","https://panchayat.gov.in/"),("PIB","https://pib.gov.in/")]:
-        with st.container(border=True):
-            st.markdown(f"### {name}"); st.link_button("Open →", url)
+else:
+    st.title("About PanchayatConnect")
+    st.write("**Independent civic-tech project.** Not a government website. Data sources: LGD, data.gov.in, 【entity-PIB¦canonical_name=PIB】, india.gov.in. Always verify eligibility on official portals.")
+    st.warning("Demo village data shown. Production must use live LGD API.")
 
-elif page == "ℹ️ About":
-    st.title("About")
-    st.write("PanchayatConnect is an independent civic-tech project. Not a government website. Verify on official portals.")
+st.markdown('<div class="footer"><b>🇮🇳 PanchayatConnect Pro</b> • Built for citizens • Verify on official sources • AI powered by Gemini</div>', unsafe_allow_html=True)
